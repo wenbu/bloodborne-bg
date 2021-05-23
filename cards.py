@@ -7,14 +7,11 @@ class Deck:
     A Deck consists of two piles of cards: the deck and the discard. Cards may be drawn from the deck or added to
     the discard.
     """
-    _num_cards_available: int
-    _deck: List[int]
-    _discard: List[int]
 
     def __init__(self, num_cards: int):
-        self._num_cards_available = num_cards
-        self._deck = list(range(num_cards))
-        self._discard = []
+        self._num_cards_available: int = num_cards
+        self._deck: List[int] = list(range(num_cards))
+        self._discard: List[int] = []
 
     def shuffle(self) -> None:
         """Shuffle the remaining cards in the deck."""

@@ -1,5 +1,4 @@
-from __future__ import annotations
-from typing import Any, List, Optional, Tuple, NamedTuple, NewType, Dict
+from typing import Any, List, Optional, Tuple, NewType, Dict
 
 Position = NewType('Position', Tuple[int, int])
 Direction = NewType('Direction', int)
@@ -66,8 +65,9 @@ class MapSpace:
 
 
 class TileDef:
+    """Contains information about a map tile's spaces, exits and connectivity."""
     def __init__(self, spaces: List[MapSpace], exits: List[Optional[MapSpace]],
-                 adjacency: Dict[MapSpace: List[MapSpace]], name: str):
+                 adjacency: Dict[MapSpace, List[MapSpace]], name: str):
         """
         Args:
             spaces: a list of MapSpaces in this tile.
@@ -83,16 +83,20 @@ class TileDef:
         self.exits = exits
         self.adjacency = adjacency
         self.name = name
-        # TODO probably tile effects will go here too
-    """Contains information about a map tile's spaces, exits and connectivity."""
+        # TODO probably tile effects, lamps, chest/monster spawns, etc. will go here too
 
 
 class MapTile:
-    """A single MapTile can contain multiple MapSpaces."""
-    """     
-    Orientation is stored as number of of clockwise 90-degree rotations from some canonical orientation.
+    """Represents one map tile as it exists on the board.
+
+    Currently this means it tracks its own rotation in addition to the TileDef. This may change in the future.
     """
     def __init__(self, tile_def: TileDef, rotation: int = 0):
+        """
+        Args:
+            tile_def: This MapTile's TileDef.
+            rotation: Number of clockwise 90 degree rotations from the TileDef orientation.
+        """
         self._tile_def = tile_def
         self._rotation = rotation
 
@@ -118,7 +122,7 @@ class MapTile:
     def get_spaces(self) -> List[MapSpace]:
         return self._tile_def.spaces
 
-    def get_neighbors(self, space: MapSpace) -> List[MapSpace]:
+    def get_space_neighbors(self, space: MapSpace) -> List[MapSpace]:
         if space not in self._tile_def.spaces:
             raise ValueError('Specified space is not on this tile.')
 
@@ -142,7 +146,7 @@ class Board:
         # Tile position -> BoardNode lookup dict.
         self._positions = {origin: self._board_root}
         # MapSpace -> MapTile lookup dict.
-        self._spaces: Dict[MapSpace: MapTile] = {}
+        self._spaces: Dict[MapSpace, MapTile] = {}
         self._register_spaces(first_tile)
 
     class _BoardNode:
@@ -195,7 +199,7 @@ class Board:
         # Valid moves from a given space include all of its neighbors on the tile, plus whatever spaces are through
         # any exits.
         tile = self._spaces[space]
-        moves: List[MapSpace] = tile.get_neighbors(space)
+        moves: List[MapSpace] = tile.get_space_neighbors(space)
         exit_directions = tile.get_exit(space)
         if exit_directions:
             for direction in exit_directions:
