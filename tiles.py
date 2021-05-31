@@ -5,14 +5,17 @@ from typing import Dict, List
 def create_tile(**kwargs) -> TileDef:
     """Convenience function for creating a TileDef.
 
-    # TODO Consider changing the TileDef constructor signature to this?
+    # TODO Consider changing the TileDef constructor signature to something like this?
     """
     spaces: List[MapSpace] = []
     for i, position in enumerate(kwargs['positions']):
-        space_id = '%s%d' % (kwargs['tile_id'], i)
-        name = kwargs['names'][i] if i in kwargs['names'] else ''
+        space_id = '%s-%d' % (kwargs['tile_id'], i)
+        name = ''
+        if 'names' in kwargs and i in kwargs['names']:
+            name = kwargs['names'][i]
         spaces.append(MapSpace(position, space_id, name=name))
-    exits = [spaces[e_idx] if e_idx else None for e_idx in kwargs['exits']]
+    exits = [spaces[e_idx] if e_idx is not None else None for e_idx in kwargs['exits']]
+    print('%s exits = %s' % (kwargs['tile_id'], str(exits)))
     adjacency = {spaces[s_idx]: [spaces[t_idx] for t_idx in kwargs['adjacency'][s_idx]]
                  for s_idx in kwargs['adjacency']}
     return TileDef(spaces, exits, adjacency, kwargs['tile_id'])

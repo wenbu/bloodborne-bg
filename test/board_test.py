@@ -1,11 +1,11 @@
 import unittest
 from board import Board, MapTile, UP, LEFT, RIGHT, DOWN
-from tiles import *
+from tiles import TILES
 
 
 class BoardTest(unittest.TestCase):
     def test_board(self):
-        central_lamp_tile = MapTile(central_lamp())
+        central_lamp_tile = MapTile(TILES['central_lamp'])
         cl1, cl2, cl3 = central_lamp_tile.get_spaces()
         board = Board(central_lamp_tile)
 
@@ -21,8 +21,8 @@ class BoardTest(unittest.TestCase):
         self.assertIn(cl2, moves)
 
     def test_add_tile(self):
-        central_lamp_tile = MapTile(central_lamp())
-        oedon_chapel_tile = MapTile(oedon_chapel())
+        central_lamp_tile = MapTile(TILES['central_lamp'])
+        oedon_chapel_tile = MapTile(TILES['oedon_chapel'])
         cl1, cl2, cl3 = central_lamp_tile.get_spaces()
         oc1, oc2, oc3 = oedon_chapel_tile.get_spaces()
         board = Board(central_lamp_tile)
