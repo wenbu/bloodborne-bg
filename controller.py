@@ -21,9 +21,17 @@ class HunterController(Controller):
         valid_moves = board.get_valid_moves(self._actor.position)
         move = -1
         while not 0 <= move < len(valid_moves):
-            # Really need some way to visualize the board for this to make any sense.
+            prompt_lst = ['Your current space is %s.\n'
+                          'Possible moves:\n'
+                          '\t0: Don\'t move.\n' % self._actor.position]
+            for i, valid_move in enumerate(valid_moves):
+                prompt_lst.append('\t%d: Move to %s.\n' % (i+1, valid_move))
+            prompt_lst.append('Pick a move: [0-%d] > ' % len(valid_moves))
             try:
-                move = int(input('Pick a move: [0-%d] > ' % (len(valid_moves)-1)))
+                move = int(input(''.join(prompt_lst))) - 1
+                if move == -1:
+                    # No move.
+                    return
             except ValueError:
                 print('Invalid move.')
                 continue
@@ -31,7 +39,6 @@ class HunterController(Controller):
                 print('Invalid move.')
                 continue
             self._actor.move(valid_moves[move])
-        print('Hunter moved to %s.' % valid_moves[move].id)
 
 
 class MonsterController(Controller):
