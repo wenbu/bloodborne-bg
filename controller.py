@@ -31,7 +31,7 @@ class HunterController(Controller):
                 print('Invalid move.')
                 continue
             self._actor.move(valid_moves[move])
-        print('Hunter moved.')
+        print('Hunter moved to %s.' % valid_moves[move].id)
 
 
 class MonsterController(Controller):

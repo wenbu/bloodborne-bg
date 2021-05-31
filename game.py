@@ -3,7 +3,7 @@ from board import Board, MapTile
 from controller import HunterController, MonsterController
 from enum import Enum
 import random
-from tiles import central_lamp
+from tiles import TILES
 from typing import List
 
 
@@ -18,7 +18,7 @@ class Game:
 
     def _init_board(self):
         # TODO starting board is campaign-dependent
-        self._board = Board(MapTile(central_lamp(), 0))
+        self._board = Board(MapTile(TILES['central_lamp'], 0))
 
     def _init_players(self):
         self._players: List[HunterController] = []
