@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Tuple, NewType, Dict
+from typing import Any, List, Optional, Tuple, NewType, Dict, Iterable
 
 Position = NewType('Position', Tuple[int, int])
 Direction = NewType('Direction', int)
@@ -160,6 +160,9 @@ class Board:
     def _register_spaces(self, tile: MapTile) -> None:
         for space in tile.get_spaces():
             self._spaces[space] = tile
+
+    def get_current_tiles(self) -> Iterable[MapTile]:
+        return self._tile_positions.keys()
 
     def add_tile(self, tile: MapTile, direction: Direction, new_tile: MapTile) -> None:
         """Add `new_tile` to the board in the position one space from `tile` in `direction`."""
