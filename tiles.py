@@ -15,7 +15,6 @@ def create_tile(**kwargs) -> TileDef:
             name = kwargs['names'][i]
         spaces.append(MapSpace(position, space_id, name=name))
     exits = [spaces[e_idx] if e_idx is not None else None for e_idx in kwargs['exits']]
-    print('%s exits = %s' % (kwargs['tile_id'], str(exits)))
     adjacency = {spaces[s_idx]: [spaces[t_idx] for t_idx in kwargs['adjacency'][s_idx]]
                  for s_idx in kwargs['adjacency']}
     return TileDef(spaces, exits, adjacency, kwargs['tile_id'])
