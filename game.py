@@ -1,9 +1,10 @@
+from action import Action, ActionType
 from actor.hunter import Hunter, HunterGunDef, HunterWeaponDef
 from board import Board, MapTile
 from controller import HunterController, MonsterController
 from enum import Enum
 import random
-from tiles import TILES
+from tiles import BASE, TileDeck
 from typing import List
 
 
@@ -12,13 +13,20 @@ class Game:
         # TODO hunter types will need to be specified
         self._num_players = num_players
         self._current_round = 0
+        self._init_tiles()
         self._init_board()
         self._init_players()
         self._init_monsters()
 
+    def _init_tiles(self):
+        # TODO tile deck is campaign-dependent
+        all_tiles = dict(BASE)
+        del all_tiles['central_lamp']
+        self._tiles = TileDeck(list(all_tiles.values()))
+
     def _init_board(self):
         # TODO starting board is campaign-dependent
-        self._board = Board(MapTile(TILES['central_lamp'], 0))
+        self._board = Board(MapTile(BASE['central_lamp'], 0))
 
     def _init_players(self):
         self._players: List[HunterController] = []
@@ -37,14 +45,31 @@ class Game:
 
     def round(self):
         for player in self._players:
-            player.do_action(self._board)
+            # TODO: Action card implementation. For now players get one action per turn.
+            possible_actions = self.get_player_actions(player)
+            player_action = player.select_action(possible_actions)
+            if player_action.type == ActionType.MOVE:
+                player.actor.move(player_action.arg)
+                # TODO: Player should get a second move here (and possibly a third, depending on action card)
+                # TODO: Handle monster pursuit.
+            elif player_action.type == ActionType.END:
+                pass
 
             # Enemy activation
             for monster in self._monsters:
-                monster.do_action(self._board)
+                # TODO: Keep track of player moves for monster move.
+                monster.select_action([])
 
         # End of round stuff goes here, e.g. increment hunt track
         self._current_round += 1
+
+    def get_player_actions(self, player: HunterController) -> List[Action]:
+        possible_actions = []
+        valid_moves = self._board.get_valid_moves(player.actor.position)
+        for move in valid_moves:
+            possible_actions.append(Action(type=ActionType.MOVE, arg=move))
+        possible_actions.append(Action(type=ActionType.END))
+        return possible_actions
 
     def is_game_over(self) -> bool:
         # TODO this is completely arbitrary

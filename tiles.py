@@ -1,5 +1,24 @@
-from board import Position, MapSpace, TileDef
-from typing import Dict, List
+from board import MapSpace, TileDef
+from cards.deck import Deck
+from typing import List, Optional
+
+
+class TileDeck:
+    """A TileDeck is a simplified Deck that doesn't have a discard pile."""
+    def __init__(self, tiles: List[TileDef]):
+        self._deck = Deck(len(tiles))
+        self._tiles = tiles
+
+    def draw(self) -> Optional[TileDef]:
+        if self._deck.current_deck_size() == 0:
+            return None
+        drawn_card = self._deck.draw(num_cards=1, auto_shuffle_discard=False)
+        return self._tiles[drawn_card[0]]
+
+    def shuffle_in(self, tile: TileDef) -> None:
+        if tile not in self._tiles:
+            raise ValueError('Provided tile is not in this deck.')
+        self._deck.shuffle_in([self._tiles.index(tile)])
 
 
 def create_tile(**kwargs) -> TileDef:
@@ -20,7 +39,7 @@ def create_tile(**kwargs) -> TileDef:
     return TileDef(spaces, exits, adjacency, kwargs['tile_id'])
 
 
-TILES = {
+BASE = {
     'central_lamp': create_tile(
         help='''
         (0, 0)          (1, 0)

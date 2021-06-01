@@ -1,14 +1,18 @@
+from action import Action
 from actor.actor import Actor
 from actor.hunter import Hunter
 from board import Board
+from dataclasses import dataclass
+from enum import Enum
+from typing import List
 import random
 
 
 class Controller:
     def __init__(self, actor: Actor):
-        self._actor = actor
+        self.actor = actor
 
-    def do_action(self, board: Board) -> None:
+    def select_action(self, possible_actions: List[Action]) -> Action:
         raise NotImplemented()
 
 
@@ -16,34 +20,26 @@ class HunterController(Controller):
     def __init__(self, hunter: Hunter):
         super().__init__(hunter)
 
-    def do_action(self, board: Board) -> None:
-        # Only handling moves for now.
-        valid_moves = board.get_valid_moves(self._actor.position)
-        move = -1
-        while not 0 <= move < len(valid_moves):
+    def select_action(self, possible_actions: List[Action]) -> Action:
+        action = -1
+        while not 0 <= action < len(possible_actions):
             prompt_lst = ['Your current space is %s.\n'
-                          'Possible moves:\n'
-                          '\t0: Don\'t move.\n' % self._actor.position]
-            for i, valid_move in enumerate(valid_moves):
-                prompt_lst.append('\t%d: Move to %s.\n' % (i+1, valid_move))
-            prompt_lst.append('Pick a move: [0-%d] > ' % len(valid_moves))
+                          'Possible actions:\n' % self.actor.position]
+            for i, possible_action in enumerate(possible_actions):
+                prompt_lst.append('\t%d: %s.\n' % (i+1, possible_action))
+            prompt_lst.append('Pick an action: [1-%d] > ' % len(possible_actions))
             try:
-                move = int(input(''.join(prompt_lst))) - 1
-                if move == -1:
-                    # No move.
-                    return
+                action = int(input(''.join(prompt_lst))) - 1
             except ValueError:
-                print('Invalid move.')
+                print('Invalid action.')
                 continue
-            if not 0 <= move < len(valid_moves):
-                print('Invalid move.')
+            if not 0 <= action < len(possible_actions):
+                print('Invalid action.')
                 continue
-            self._actor.move(valid_moves[move])
+        return possible_actions[action]
 
 
 class MonsterController(Controller):
-    def do_action(self, board: Board) -> None:
+    def select_action(self, possible_actions: List[Action]) -> Action:
         # Just pick a random move.
-        valid_moves = board.get_valid_moves(self._actor.position)
-        move = random.choice(valid_moves)
-        self._actor.move(move)
+        return random.choice(possible_actions)
