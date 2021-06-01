@@ -138,12 +138,16 @@ class MapTile:
 class Board:
     """Represents the entirety of the playing board."""
     def __init__(self, first_tile: MapTile):
+        # Here Positions are used to describe where a given MapTiles are located
+        # relative to the board origin.
+        # TODO some of the physical tiles are larger than the standard ones, do we need special
+        # handling for those?
         origin = Position((0, 0))
         # Graph structure representing tile network.
         self._board_root = self._BoardNode(first_tile, origin)
-        # MapTile -> position lookup dict.
+        # MapTile -> Position lookup dict.
         self._tile_positions = {first_tile: origin}
-        # Tile position -> BoardNode lookup dict.
+        # Position -> BoardNode lookup dict.
         self._positions = {origin: self._board_root}
         # MapSpace -> MapTile lookup dict.
         self._spaces: Dict[MapSpace, MapTile] = {}
