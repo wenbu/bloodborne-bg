@@ -1,6 +1,6 @@
 from action import Action, ActionType
 from actor.hunter import Hunter, HunterGunDef, HunterWeaponDef
-from board import Board, MapTile
+from board import Board, Direction, MapTile, MapSpace
 from controller import HunterController, MonsterController
 from enum import Enum
 import random
@@ -49,7 +49,18 @@ class Game:
             possible_actions = self.get_player_actions(player)
             player_action = player.select_action(possible_actions)
             if player_action.type == ActionType.MOVE:
-                player.actor.move(player_action.arg)
+                if isinstance(player_action.arg, MapSpace):
+                    player.actor.move(player_action.arg)
+                elif isinstance(player_action.arg, Direction):
+                    # Player is exiting the tile.
+                    exit_direction = player_action.arg
+                    current_tile = self._board.get_tile(player.actor.position)
+                    new_tile_def = self._tiles.draw()
+                    new_tile = self._board.add_tile(current_tile, exit_direction, new_tile_def)
+                    print('Added new tile %s.' % new_tile)
+                    # TODO need to handle case where adding this tile would lead to no open exits on board (redraw tile)
+                    destination_space = new_tile.get_exit_space(exit_direction.reverse())
+                    player.actor.move(destination_space)
                 # TODO: Player should get a second move here (and possibly a third, depending on action card)
                 # TODO: Handle monster pursuit.
             elif player_action.type == ActionType.END:
@@ -65,9 +76,16 @@ class Game:
 
     def get_player_actions(self, player: HunterController) -> List[Action]:
         possible_actions = []
-        valid_moves = self._board.get_valid_moves(player.actor.position)
+        current_position = player.actor.position
+        current_tile = self._board.get_tile(current_position)
+        valid_moves = self._board.get_valid_moves(current_position)
         for move in valid_moves:
             possible_actions.append(Action(type=ActionType.MOVE, arg=move))
+        if current_position.has_exit:
+            all_exits = self._board.get_tile(current_position).get_space_exits(current_position)
+            for exit_direction in all_exits:
+                if not self._board.get_tile_in_direction(current_tile, exit_direction):
+                    possible_actions.append(Action(type=ActionType.MOVE, arg=exit_direction))
         possible_actions.append(Action(type=ActionType.END))
         return possible_actions
 

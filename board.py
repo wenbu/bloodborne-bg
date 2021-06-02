@@ -1,33 +1,37 @@
+import random
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, List, Optional, Tuple, NewType, Dict, Iterable
 
 Position = NewType('Position', Tuple[int, int])
-Direction = NewType('Direction', int)
-UP = Direction(0)
-RIGHT = Direction(1)
-DOWN = Direction(2)
-LEFT = Direction(3)
 
 
-def reverse(direction: Direction) -> Direction:
-    """Return the direction that is the opposite of the one provided."""
-    return Direction((direction + 2) % 4)
+class Direction(Enum):
+    UP = 0
+    RIGHT = 1
+    DOWN = 2
+    LEFT = 3
+
+    def reverse(self) -> 'Direction':
+        return Direction((self.value + 2) % 4)
 
 
 def move(position: Position, direction: Direction) -> Position:
     """Return the position that is one space in the provided direction from the provided position."""
     # I'm sure there's a more elegant way to do this but I'm not clever enough to think of it right now.
-    if direction == UP:
+    if direction == Direction.UP:
         return Position((position[0], position[1]+1))
-    elif direction == RIGHT:
+    elif direction == Direction.RIGHT:
         return Position((position[0]+1, position[1]))
-    elif direction == DOWN:
+    elif direction == Direction.DOWN:
         return Position((position[0], position[1]-1))
-    elif direction == LEFT:
+    elif direction == Direction.LEFT:
         return Position((position[0]-1, position[1]))
     else:
         raise ValueError('Invalid direction %d' % direction)
 
 
+@dataclass(eq=True, frozen=True)
 class MapSpace:
     """Contains information about a space's physical boundaries on a tile."""
     """
@@ -44,24 +48,13 @@ class MapSpace:
     
     Coordinates will be stored in a list in clockwise order.
     """
-    def __init__(self, bounds: Tuple[Tuple[float, float], ...], space_id: str, name: str = ''):
-        self.bounds = bounds
-        self.id = space_id
-        self.name = name
-
-    def __hash__(self):
-        return hash((self.bounds, self.name))
-
-    def __eq__(self, other):
-        if isinstance(other, MapSpace):
-            return (self.bounds, self.name) == (other.bounds, other.name)
-        return NotImplemented
-
-    def __repr__(self):
-        return self.id
+    id: str
+    bounds: Tuple[Tuple[float, float], ...]
+    name: str = ''
+    has_exit: bool = False
 
     def __str__(self):
-        return self.__repr__()
+        return self.id
 
 
 class TileDef:
@@ -98,7 +91,7 @@ class MapTile:
             rotation: Number of clockwise 90 degree rotations from the TileDef orientation.
         """
         self._tile_def = tile_def
-        self._rotation = rotation
+        self._rotation = rotation % 4
 
     def _rotate(self, lst: List[Any]) -> List[Any]:
         return lst[-self._rotation:] + lst[:-self._rotation]
@@ -111,13 +104,13 @@ class MapTile:
     def get_exit_space(self, direction: Direction) -> Optional[MapSpace]:
         """Return the MapSpace with the exit in the specified direction, or None."""
         rotated_exits = self._rotate(self._tile_def.exits)
-        return rotated_exits[direction]
+        return rotated_exits[direction.value]
 
-    def get_exit(self, space: MapSpace) -> List[Direction]:
-        """Return the Directions in which the specified space have exit(s), or None."""
+    def get_space_exits(self, space: MapSpace) -> List[Direction]:
+        """Return the Directions in which the specified space have exit(s), or an empty list."""
         if space not in self._tile_def.spaces:
             raise ValueError('Specified space is not on this tile.')
-        return [Direction((i + self._rotation) % 4) for i, e in enumerate(self._tile_def.exits)]
+        return [Direction((i + self._rotation) % 4) for i, e in enumerate(self._tile_def.exits) if space == e]
 
     def get_spaces(self) -> List[MapSpace]:
         return self._tile_def.spaces
@@ -168,17 +161,34 @@ class Board:
     def get_current_tiles(self) -> Iterable[MapTile]:
         return self._tile_positions.keys()
 
-    def add_tile(self, tile: MapTile, direction: Direction, new_tile: MapTile) -> None:
-        """Add `new_tile` to the board in the position one space from `tile` in `direction`."""
+    def add_tile(self, tile: MapTile, direction: Direction, new_tile_def: TileDef,
+                 new_tile_rotation: Optional[int] = None) -> MapTile:
+        """Add `new_tile` to the board in the position one space from `tile` in `direction`.
+        `new_tile` will be rotated appropriately to connect the exits. Return the added tile.
+
+        If new_tile_rotation is not specified (default), then the rotation of the new tile will be randomly chosen.
+        new_tile_rotation is primarily intended to simplify testing, but there is still some uncertainty about whether
+        players are intended to determine tile rotation or if it's supposed to be randomly chosen.
+        """
         if tile not in self._tile_positions:
             raise ValueError('Specified base tile is not on the board.')
         # Validate tile orientation.
         tile_exits = tile.get_exit_directions()
         if direction not in tile_exits:
             raise ValueError('Tile not in valid orientation.')
-        tile_exits = new_tile.get_exit_directions()
-        if reverse(direction) not in tile_exits:
-            raise ValueError('New tile not in valid orientation.')
+        if new_tile_rotation is None:
+            tile_exits = new_tile_def.exits
+            # Pick a rotation at random to line up the exits.
+            exit_directions = [Direction(i) for i, exit_space in enumerate(tile_exits) if exit_space is not None]
+            chosen_exit_direction = random.choice(exit_directions)
+            print('Selected random exit direction is %s.' % chosen_exit_direction)
+            new_tile_rotation = Direction(direction).reverse().value - chosen_exit_direction.value
+            print('Need to rotate %d*90 to face %s' % (new_tile_rotation, direction))
+        new_tile = MapTile(new_tile_def, new_tile_rotation)
+        if new_tile_rotation is not None:
+            # Validate provided rotation.
+            if direction.reverse() not in new_tile.get_exit_directions():
+                raise ValueError('Provided rotation is not valid.')
 
         # Create new position and BoardNode.
         src_position = self._tile_positions[tile]
@@ -187,13 +197,19 @@ class Board:
 
         # Hook up new node to graph.
         src_node = self._positions[src_position]
-        src_node.neighbors[direction] = dst_node
-        dst_node.neighbors[reverse(direction)] = src_node
+        src_node.neighbors[direction.value] = dst_node
+        dst_node.neighbors[direction.reverse().value] = src_node
 
         # Update lookup dicts.
         self._positions[dst_position] = dst_node
         self._tile_positions[new_tile] = dst_position
         self._register_spaces(new_tile)
+
+        return new_tile
+
+    def get_tile(self, space: MapSpace) -> MapTile:
+        """Return the tile on which the specified space exists."""
+        return self._spaces[space]
 
     def get_tile_in_direction(self, tile: MapTile, direction: Direction) -> Optional[MapTile]:
         """Return the tile in the specified direction from the specified tile, or None."""
@@ -207,12 +223,14 @@ class Board:
         # any exits.
         tile = self._spaces[space]
         moves: List[MapSpace] = tile.get_space_neighbors(space)
-        exit_directions = tile.get_exit(space)
+        exit_directions = tile.get_space_exits(space)
         if exit_directions:
             for direction in exit_directions:
                 exit_tile = self.get_tile_in_direction(tile, direction)
                 if exit_tile:
-                    exit_space = exit_tile.get_exit_space(reverse(direction))
+                    # Check that the tile on the other side of the exit actually has an exit itself in the
+                    # opposite direction.
+                    exit_space = exit_tile.get_exit_space(direction.reverse())
                     if exit_space:
                         moves.append(exit_space)
         return moves

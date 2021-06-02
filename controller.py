@@ -1,7 +1,7 @@
-from action import Action
+from action import Action, ActionType
 from actor.actor import Actor
 from actor.hunter import Hunter
-from board import Board
+from board import Board, MapSpace
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
@@ -26,7 +26,10 @@ class HunterController(Controller):
             prompt_lst = ['Your current space is %s.\n'
                           'Possible actions:\n' % self.actor.position]
             for i, possible_action in enumerate(possible_actions):
-                prompt_lst.append('\t%d: %s.\n' % (i+1, possible_action))
+                prompt_lst.append('\t%d: %s.' % (i+1, possible_action))
+                if possible_action.type == ActionType.MOVE and isinstance(possible_action.arg, MapSpace) and possible_action.arg.has_exit:
+                    prompt_lst.append(' This space has an exit to another tile.')
+                prompt_lst.append('\n')
             prompt_lst.append('Pick an action: [1-%d] > ' % len(possible_actions))
             try:
                 action = int(input(''.join(prompt_lst))) - 1

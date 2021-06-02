@@ -7,6 +7,7 @@ class TileDeck:
     """A TileDeck is a simplified Deck that doesn't have a discard pile."""
     def __init__(self, tiles: List[TileDef]):
         self._deck = Deck(len(tiles))
+        self._deck.shuffle()
         self._tiles = tiles
 
     def draw(self) -> Optional[TileDef]:
@@ -32,7 +33,8 @@ def create_tile(**kwargs) -> TileDef:
         name = ''
         if 'names' in kwargs and i in kwargs['names']:
             name = kwargs['names'][i]
-        spaces.append(MapSpace(position, space_id, name=name))
+        has_exit = i in kwargs['exits']
+        spaces.append(MapSpace(space_id, position, name=name, has_exit=has_exit))
     exits = [spaces[e_idx] if e_idx is not None else None for e_idx in kwargs['exits']]
     adjacency = {spaces[s_idx]: [spaces[t_idx] for t_idx in kwargs['adjacency'][s_idx]]
                  for s_idx in kwargs['adjacency']}
