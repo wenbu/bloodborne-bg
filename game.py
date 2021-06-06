@@ -5,7 +5,7 @@ from controller import HunterController, MonsterController
 from enum import Enum
 import random
 from tiles import BASE, TileDeck
-from typing import List
+from typing import List, Optional
 
 
 class Game:
@@ -45,26 +45,24 @@ class Game:
 
     def round(self):
         for player in self._players:
-            # TODO: Action card implementation. For now players get one action per turn.
-            possible_actions = self.get_player_actions(player)
-            player_action = player.select_action(possible_actions)
-            if player_action.type == ActionType.MOVE:
-                if isinstance(player_action.arg, MapSpace):
-                    player.actor.move(player_action.arg)
-                elif isinstance(player_action.arg, Direction):
-                    # Player is exiting the tile.
-                    exit_direction = player_action.arg
-                    current_tile = self._board.get_tile(player.actor.position)
-                    new_tile_def = self._tiles.draw()
-                    new_tile = self._board.add_tile(current_tile, exit_direction, new_tile_def)
-                    print('Added new tile %s.' % new_tile)
-                    # TODO need to handle case where adding this tile would lead to no open exits on board (redraw tile)
-                    destination_space = new_tile.get_exit_space(exit_direction.reverse())
-                    player.actor.move(destination_space)
-                # TODO: Player should get a second move here (and possibly a third, depending on action card)
-                # TODO: Handle monster pursuit.
-            elif player_action.type == ActionType.END:
-                pass
+            player.new_round()
+
+        for player in self._players:
+            while player.has_action():
+                # TODO: handle returned stat card and alter player's actions
+                player.discard_stat_card()
+                possible_actions = self.get_player_actions(player)
+                player_action = player.select_action(possible_actions)
+                if player_action.type == ActionType.MOVE_START:
+                    num_moves_remaining = 2
+                    while num_moves_remaining > 0:
+                        player_move = self.handle_player_move(player, num_moves_remaining)
+                        if not player_move:
+                            break
+                        num_moves_remaining -= 1
+                    # TODO: Handle monster pursuit.
+                elif player_action.type == ActionType.END_TURN:
+                    break
 
             # Enemy activation
             for monster in self._monsters:
@@ -76,18 +74,54 @@ class Game:
 
     def get_player_actions(self, player: HunterController) -> List[Action]:
         possible_actions = []
+        possible_actions.append(Action(type=ActionType.MOVE_START))
+        # TODO get possible attack targets, dream action, etc.
+        possible_actions.append(Action(type=ActionType.END_TURN))
+        return possible_actions
+
+    def handle_player_move(self, player: HunterController, num_moves_remaining: int) -> Optional[MapSpace]:
+        """Get the list of possible moves, ask the player controller for a selection, and move the player
+        actor. Return the space the player moved to, or None if the player ended the move early."""
+        possible_moves = self.get_player_moves(player)
+        player_move = player.select_move(possible_moves, num_moves_remaining)
+        if player_move.type == ActionType.MOVE:
+            destination_space = player_move.arg
+        elif player_move.type == ActionType.EXIT:
+            # Player is exiting the tile.
+            exit_direction = player_move.arg
+            current_tile = self._board.get_tile(player.actor.position)
+            new_tile = self._add_new_tile_for_move(current_tile, exit_direction)
+            destination_space = new_tile.get_exit_space(exit_direction.reverse())
+        elif player_move.type == ActionType.END_MOVE:
+            return None
+        else:
+            raise ValueError('Unexpected ActionType %s for player move.' % player_move.type)
+        player.actor.move(destination_space)
+        return destination_space
+
+    def get_player_moves(self, player: HunterController) -> List[Action]:
+        possible_moves = []
         current_position = player.actor.position
         current_tile = self._board.get_tile(current_position)
         valid_moves = self._board.get_valid_moves(current_position)
         for move in valid_moves:
-            possible_actions.append(Action(type=ActionType.MOVE, arg=move))
-        if current_position.has_exit:
+            possible_moves.append(Action(type=ActionType.MOVE, arg=move))
+        if current_position.has_exit and self._tiles.num_remaining() > 0:
             all_exits = self._board.get_tile(current_position).get_space_exits(current_position)
             for exit_direction in all_exits:
+                # Only add exits to unknown tiles here. Exits to known tiles are handled in get_space_exits
+                # above.
                 if not self._board.get_tile_in_direction(current_tile, exit_direction):
-                    possible_actions.append(Action(type=ActionType.MOVE, arg=exit_direction))
-        possible_actions.append(Action(type=ActionType.END))
-        return possible_actions
+                    possible_moves.append(Action(type=ActionType.EXIT, arg=exit_direction))
+        possible_moves.append(Action(type=ActionType.END_MOVE))
+        return possible_moves
+
+    def _add_new_tile_for_move(self, existing_tile: MapTile, direction: Direction) -> MapTile:
+        new_tile_def = self._tiles.draw()
+        new_tile = self._board.add_tile(existing_tile, direction, new_tile_def)
+        print('Added new tile %s.' % new_tile)
+        # TODO need to handle case where adding this tile would lead to no open exits on board (redraw tile)
+        return new_tile
 
     def is_game_over(self) -> bool:
         # TODO this is completely arbitrary

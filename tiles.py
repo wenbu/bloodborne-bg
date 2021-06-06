@@ -21,6 +21,9 @@ class TileDeck:
             raise ValueError('Provided tile is not in this deck.')
         self._deck.shuffle_in([self._tiles.index(tile)])
 
+    def num_remaining(self) -> int:
+        return self._deck.current_deck_size()
+
 
 def create_tile(**kwargs) -> TileDef:
     """Convenience function for creating a TileDef.

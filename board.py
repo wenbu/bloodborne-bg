@@ -181,9 +181,7 @@ class Board:
             # Pick a rotation at random to line up the exits.
             exit_directions = [Direction(i) for i, exit_space in enumerate(tile_exits) if exit_space is not None]
             chosen_exit_direction = random.choice(exit_directions)
-            print('Selected random exit direction is %s.' % chosen_exit_direction)
             new_tile_rotation = Direction(direction).reverse().value - chosen_exit_direction.value
-            print('Need to rotate %d*90 to face %s' % (new_tile_rotation, direction))
         new_tile = MapTile(new_tile_def, new_tile_rotation)
         if new_tile_rotation is not None:
             # Validate provided rotation.
